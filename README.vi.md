@@ -11,6 +11,8 @@ Indie House là dịch vụ nghe nhạc tự host, chỉ dành cho người đư
 | [indie-house-android](https://github.com/nphuly/indie-house-android) | App Android 4.3 (API 18) cho BlackBerry Leap, viết bằng Java và Android Views |
 
 > **Miễn trừ trách nhiệm:** Indie House được cung cấp nguyên trạng, không kèm bảo đảm. Nếu bạn tự host, bạn tự chịu trách nhiệm về an toàn, về quyền đối với mọi bài nhạc bạn tải lên và về việc tuân thủ pháp luật. Không được dùng cho nhạc lậu hay mục đích thương mại. Đọc [DISCLAIMER.md](DISCLAIMER.md#tiếng-việt).
+>
+> Và bởi vì tôi đã quen làm việc với GitLab, nên tôi vẫn sẽ để nguyên file `.gitlab-ci.yml` ở đây, phòng khi bạn cần đến nó để xài với GitLab CI/CD!
 
 ## Tính năng
 
