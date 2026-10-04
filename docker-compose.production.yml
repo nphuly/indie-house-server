@@ -1,0 +1,44 @@
+# Deployment VM. infrastructure/scripts/deploy-release.sh pins the three
+# application images to one release; the ":current" defaults are local tags the
+# script moves after a healthy rollout, so manual commands on the VM (without
+# the *_IMAGE variables) keep running the deployed release.
+services:
+  control-plane:
+    image: ${CONTROL_PLANE_IMAGE:-indie-house/control-plane:current}
+
+  queue-worker:
+    image: ${CONTROL_PLANE_IMAGE:-indie-house/control-plane:current}
+
+  scheduler:
+    image: ${CONTROL_PLANE_IMAGE:-indie-house/control-plane:current}
+
+  media-worker:
+    image: ${MEDIA_WORKER_IMAGE:-indie-house/media-worker:current}
+
+  stream-service:
+    image: ${STREAM_SERVICE_IMAGE:-indie-house/stream-service:current}
+
+  # The only host-published application port. cloudflared runs on the VM and
+  # proxies the public HTTPS hostname to this loopback-only HTTP port.
+  edge:
+    image: caddy:2-alpine
+    container_name: indie_house_edge
+    restart: unless-stopped
+    environment:
+      PUBLIC_SCHEME: ${PUBLIC_SCHEME:-http}
+    ports:
+      - "${EDGE_BIND_ADDRESS:-127.0.0.1}:${EDGE_PORT:-8080}:80"
+    volumes:
+      - ./infrastructure/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      control-plane:
+        condition: service_healthy
+      stream-service:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+    networks:
+      - internal

@@ -1,0 +1,4 @@
+# Runtime key material is supplied by the secret manager or generated locally.
+# Never commit a private key, including a development key.
+*
+!.gitignore

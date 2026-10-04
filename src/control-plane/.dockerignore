@@ -1,0 +1,11 @@
+.git
+.env
+.env.*
+*.key
+*.pem
+vendor/
+node_modules/
+public/build/
+storage/
+bootstrap/cache/
+.phpunit.result.cache

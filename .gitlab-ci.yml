@@ -1,0 +1,173 @@
+stages:
+  - validate
+  - build
+  - deploy
+
+workflow:
+  rules:
+    - if: '$CI_COMMIT_REF_PROTECTED == "true" && $CI_COMMIT_BRANCH =~ /^release\/[0-9]+\.[0-9]+(\.[0-9]+)?$/'
+
+# A newer pipeline on the same release branch may cancel these jobs; the deploy
+# job opts out.
+default:
+  interruptible: true
+
+.buildkit:
+  image:
+    name: moby/buildkit:v0.33.0-rootless
+    entrypoint: [""]
+  variables:
+    BUILDKITD_FLAGS: --oci-worker-no-process-sandbox
+  before_script:
+    - mkdir -m 700 -p "$HOME/.docker"
+    - printf '{"auths":{"%s":{"auth":"%s"}}}\n' "$CI_REGISTRY" "$(printf '%s:%s' "$CI_REGISTRY_USER" "$CI_REGISTRY_PASSWORD" | base64 | tr -d '\n')" > "$HOME/.docker/config.json"
+    - chmod 600 "$HOME/.docker/config.json"
+
+# Each image keeps a registry build cache (":buildcache"), so a release only
+# rebuilds the layers whose inputs changed.
+.build-image:
+  extends: .buildkit
+  stage: build
+  # Build alongside the validate jobs; deploy:homelab still needs all of them.
+  needs: []
+  rules:
+    - if: '$CI_COMMIT_REF_PROTECTED == "true" && $CI_COMMIT_BRANCH =~ /^release\/[0-9]+\.[0-9]+(\.[0-9]+)?$/'
+  script:
+    - >-
+      buildctl-daemonless.sh build
+      --progress plain
+      --frontend dockerfile.v0
+      --local context="$BUILD_CONTEXT"
+      --local dockerfile="$BUILD_CONTEXT"
+      ${BUILD_TARGET:+--opt target=$BUILD_TARGET}
+      --opt "label:org.opencontainers.image.revision=$CI_COMMIT_SHA"
+      --import-cache "type=registry,ref=$CI_REGISTRY_IMAGE/$IMAGE_COMPONENT:buildcache"
+      --export-cache "type=registry,ref=$CI_REGISTRY_IMAGE/$IMAGE_COMPONENT:buildcache,mode=max,image-manifest=true,oci-mediatypes=true"
+      --output "type=image,name=$CI_REGISTRY_IMAGE/$IMAGE_COMPONENT:sha-$CI_COMMIT_SHA,push=true"
+
+lint:php:
+  stage: validate
+  image: php:8.4-cli-alpine
+  script:
+    - find src/control-plane -type f -name '*.php' -print0 | xargs -0 -n 1 -P "$(nproc)" php -l
+
+lint:compose:
+  stage: validate
+  image: docker:29-cli
+  script:
+    # Compose requires the env_file to exist; the example has every key.
+    - cp .env.example .env
+    - docker compose --profile stream -f docker-compose.yml -f docker-compose.production.yml config --quiet
+    - docker compose -f docker-compose.yml -f docker-compose.development.yml config --quiet
+
+# Runs the Laravel suite in the Dockerfile "test" target: the same PHP build and
+# extensions as production, plus dev dependencies. Nothing is pushed.
+test:control-plane:
+  extends: .buildkit
+  stage: validate
+  script:
+    - >-
+      buildctl-daemonless.sh build
+      --progress plain
+      --frontend dockerfile.v0
+      --local context=src/control-plane
+      --local dockerfile=src/control-plane
+      --opt target=test
+      --import-cache "type=registry,ref=$CI_REGISTRY_IMAGE/control-plane:buildcache"
+      --import-cache "type=registry,ref=$CI_REGISTRY_IMAGE/control-plane:testcache"
+      --export-cache "type=registry,ref=$CI_REGISTRY_IMAGE/control-plane:testcache,mode=max,image-manifest=true,oci-mediatypes=true"
+
+# Same Go toolchain as the image builds.
+.go-test:
+  stage: validate
+  image: golang:1.27.1-alpine
+  variables:
+    GOCACHE: "$CI_PROJECT_DIR/.cache/go-build"
+    GOMODCACHE: "$CI_PROJECT_DIR/.cache/go-mod"
+  script:
+    - cd "src/$GO_MODULE"
+    - go vet ./...
+    - go test ./...
+
+test:stream-service:
+  extends: .go-test
+  variables:
+    GO_MODULE: stream-service
+  cache:
+    key:
+      files:
+        - src/stream-service/go.sum
+    paths:
+      - .cache/go-build
+      - .cache/go-mod
+
+test:media-worker:
+  extends: .go-test
+  variables:
+    GO_MODULE: media-worker
+  cache:
+    key:
+      files:
+        - src/media-worker/go.sum
+    paths:
+      - .cache/go-build
+      - .cache/go-mod
+
+lint:deploy:
+  stage: validate
+  image: alpine:3.22
+  script:
+    - sh -n infrastructure/scripts/ci-ssh-deploy.sh
+    - sh -n infrastructure/scripts/deploy-release.sh
+    - sh -n infrastructure/scripts/init-empty-db.sh
+    - sh infrastructure/scripts/test-deploy-release.sh
+
+build:control-plane:
+  extends: .build-image
+  variables:
+    IMAGE_COMPONENT: control-plane
+    BUILD_CONTEXT: src/control-plane
+    BUILD_TARGET: production
+
+build:media-worker:
+  extends: .build-image
+  variables:
+    IMAGE_COMPONENT: media-worker
+    BUILD_CONTEXT: src/media-worker
+
+build:stream-service:
+  extends: .build-image
+  variables:
+    IMAGE_COMPONENT: stream-service
+    BUILD_CONTEXT: src/stream-service
+
+deploy:homelab:
+  stage: deploy
+  image: alpine:3.22
+  interruptible: false
+  tags:
+    - homelab-deploy
+  resource_group: homelab-production
+  environment:
+    name: homelab
+    deployment_tier: production
+  # Builds no longer wait for the validate stage, so list every gate here.
+  needs:
+    - lint:php
+    - lint:compose
+    - lint:deploy
+    - test:control-plane
+    - test:stream-service
+    - test:media-worker
+    - build:control-plane
+    - build:media-worker
+    - build:stream-service
+  rules:
+    - if: '$CI_COMMIT_REF_PROTECTED == "true" && $CI_COMMIT_BRANCH =~ /^release\/[0-9]+\.[0-9]+(\.[0-9]+)?$/'
+      when: manual
+      allow_failure: false
+  manual_confirmation: Deploy this release to the homelab VM and apply pending database migrations?
+  before_script:
+    - apk add --no-cache openssh-client
+  script:
+    - sh infrastructure/scripts/ci-ssh-deploy.sh

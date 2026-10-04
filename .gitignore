@@ -1,0 +1,12 @@
+.junie
+.idea
+.vscode
+.env
+__pycache__/
+*.pyc
+infrastructure/stream-keys/*
+infrastructure/stream-public-keys/*
+!infrastructure/stream-public-keys/.gitkeep
+infrastructure/deploy/current-release.env
+infrastructure/deploy/backups/
+.DS_Store

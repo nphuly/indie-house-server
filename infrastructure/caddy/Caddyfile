@@ -1,0 +1,49 @@
+{
+    servers {
+        # cloudflared on the VM is the only client of this loopback-bound edge,
+        # and Cloudflare puts the visitor's address in Cf-Connecting-Ip. Rate
+        # limits in Laravel need it: without it every visitor shares one IP.
+        # Anything else that can reach the edge could forge the header, so
+        # keep EDGE_BIND_ADDRESS on loopback.
+        trusted_proxies static private_ranges
+        client_ip_headers Cf-Connecting-Ip
+    }
+}
+
+:80 {
+    encode zstd gzip
+
+    # Keep status/duration for 401, 429 and 5xx alerts without logging tokens,
+    # invite URLs, cookies or client network details.
+    log {
+        output stdout
+        format filter {
+            request delete
+            wrap json
+        }
+    }
+
+    # 1. The internal API is for the Go services on the Compose network only,
+    # which call control-plane directly. Never route it from the Internet.
+    # A handle block, because a bare respond would run after the catch-all.
+    @internal path /api/internal /api/internal/*
+    handle @internal {
+        respond 404
+    }
+
+    # 2. Stream API -> Go Microservice
+    handle_path /api/v1/stream/* {
+        reverse_proxy stream-service:8080
+    }
+
+    # 3. Web Admin / Auth API -> FrankenPHP Laravel
+    handle {
+        reverse_proxy control-plane:80 {
+            # The edge listens on HTTP after the outer HTTPS proxy. Set the
+            # public scheme explicitly instead of trusting a client header.
+            header_up X-Forwarded-Proto {$PUBLIC_SCHEME:http}
+            # Replace any client-sent chain with the one address resolved above.
+            header_up X-Forwarded-For {client_ip}
+        }
+    }
+}

@@ -1,0 +1,25 @@
+<?php
+
+return [
+    'login_heading' => 'Phòng nghe của bạn',
+    'welcome_label' => 'Chào mừng đến phòng nghe',
+    'login_description' => 'Đăng nhập để nghe nhạc trên thiết bị này.',
+    'email' => 'Email',
+    'password' => 'Mật khẩu',
+    'sign_in' => 'Đăng nhập',
+    'invalid_credentials' => 'Email hoặc mật khẩu không chính xác.',
+    'title' => 'Nhạc cho khoảnh khắc này',
+    'library_label' => 'Bộ sưu tập riêng của bạn',
+    'library_description' => 'Tìm một giai điệu để ở lại lâu hơn.',
+    'all_tracks' => 'Bài hát mới nhất',
+    'search_results' => 'Kết quả tìm kiếm',
+    'browser_player' => 'Hoặc dùng trình phát của trình duyệt',
+    'search' => 'Tìm bài hát hoặc nghệ sĩ',
+    'go' => 'Tìm kiếm',
+    'sign_out' => 'Đăng xuất',
+    'empty' => 'Không tìm thấy bản thu đã phát hành.',
+    'play_in_app' => 'Phát trong ứng dụng',
+    'previous' => 'Trước',
+    'next' => 'Tiếp',
+    'page' => 'Trang :current / :last',
+];

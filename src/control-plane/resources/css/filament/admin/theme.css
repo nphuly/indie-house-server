@@ -1,0 +1,439 @@
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/**/*.php';
+@source '../../../../resources/views/filament/**/*.blade.php';
+
+.ih-connect {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    border: 1px solid var(--ih-admin-line, rgb(240 243 247 / 12%));
+    border-radius: 1.5rem;
+    background: var(--ih-admin-surface, #1b1e27);
+    padding: clamp(1.25rem, 3vw, 2rem);
+}
+
+.ih-connect__copy {
+    min-width: 0;
+}
+
+.ih-connect__eyebrow {
+    margin-bottom: .7rem;
+    color: var(--ih-admin-accent, #f7e23b);
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .16em;
+}
+
+.ih-connect h2 {
+    margin: 0 0 .5rem;
+    font-size: clamp(1.4rem, 2.8vw, 2.2rem);
+    font-weight: 750;
+    letter-spacing: -.045em;
+}
+
+.ih-connect__copy>p:not(.ih-connect__eyebrow) {
+    max-width: 36rem;
+    color: #9ca7b8;
+    line-height: 1.6;
+}
+
+.ih-connect a {
+    display: inline-block;
+    max-width: 100%;
+    margin-top: 1rem;
+    overflow-wrap: anywhere;
+    color: var(--ih-admin-accent, #f7e23b);
+    font-size: .85rem;
+}
+
+.ih-connect__qr {
+    flex: 0 0 auto;
+    width: 9rem;
+    border-radius: .7rem;
+    background: #fff;
+    padding: .6rem;
+}
+
+.ih-connect__qr img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+@media (max-width: 650px) {
+    .ih-connect {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+/* Keep the admin surfaces and controls aligned with the listening app. */
+@layer components {
+    .fi-body {
+        --ih-admin-bg: #f4f5f2;
+        --ih-admin-surface: #ffffff;
+        --ih-admin-sidebar: #ebeee9;
+        --ih-admin-line: #dfe5df;
+        --ih-admin-accent: #7a6a00;
+        background: var(--ih-admin-bg);
+        font-family: 'Chakra Petch', ui-sans-serif, system-ui, sans-serif;
+    }
+
+    .dark .fi-body {
+        --ih-admin-bg: #07090e;
+        --ih-admin-surface: #0e1118;
+        --ih-admin-sidebar: #0e1118;
+        --ih-admin-line: rgb(229 237 246 / 9%);
+        --ih-admin-accent: #f7e23b;
+        background: var(--ih-admin-bg);
+    }
+
+    .fi-logo {
+        align-items: center;
+        gap: 0.6rem;
+        font-size: 0.95rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    /* The neon mark sits on its dark sign plate, so it reads in light mode too. */
+    .fi-logo::before {
+        content: '';
+        width: 1.9rem;
+        height: 1.9rem;
+        flex: 0 0 1.9rem;
+        background: #07090e url('../../../../public/images/indie-house-mark.svg') center / 88% no-repeat;
+        clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+    }
+
+    .fi-sidebar {
+        background: var(--ih-admin-sidebar);
+        border-right: 1px solid var(--ih-admin-line);
+    }
+
+    .fi-sidebar-header,
+    .fi-topbar {
+        background: var(--ih-admin-sidebar);
+        border-bottom: 1px solid var(--ih-admin-line);
+        box-shadow: none;
+    }
+
+    .fi-sidebar-nav {
+        gap: 1.5rem;
+    }
+
+    .fi-sidebar-group-label {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .fi-sidebar-item-btn {
+        min-height: 2.85rem;
+        border-radius: 0.9rem;
+        transition: background-color 180ms ease, color 180ms ease, transform 180ms ease;
+    }
+
+    .fi-sidebar-item-has-url>.fi-sidebar-item-btn:hover {
+        transform: translateX(2px);
+    }
+
+    .dark .fi-sidebar-item.fi-active>.fi-sidebar-item-btn {
+        background: rgb(247 226 59 / 12%);
+        color: var(--ih-admin-accent);
+    }
+
+    .fi-main {
+        padding-bottom: 3rem;
+    }
+
+    .fi-header-heading {
+        font-size: clamp(1.75rem, 2.6vw, 2.45rem);
+        font-weight: 700;
+        letter-spacing: -0.05em;
+        line-height: 1.1;
+        text-wrap: balance;
+    }
+
+    .fi-ta-ctn,
+    .fi-section:not(.fi-section-not-contained),
+    .fi-wi-stats-overview-stat,
+    .fi-modal-window {
+        background: var(--ih-admin-surface);
+        border: 1px solid var(--ih-admin-line);
+        border-radius: 1.35rem;
+        box-shadow: 0 14px 38px rgb(3 8 19 / 9%);
+    }
+
+    .fi-wi-stats-overview-stat {
+        overflow: hidden;
+        transition: border-color 180ms ease, transform 180ms ease;
+    }
+
+    .fi-wi-stats-overview-stat:hover {
+        border-color: var(--ih-admin-accent);
+        transform: translateY(-2px);
+    }
+
+    .fi-wi-stats-overview-stat-value {
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.055em;
+    }
+
+    .fi-ta-table tbody tr {
+        transition: background-color 150ms ease;
+    }
+
+    .fi-ta-table tbody tr:hover {
+        background: rgb(141 150 168 / 7%);
+    }
+
+    .fi-btn,
+    .fi-input-wrp,
+    .fi-dropdown-panel {
+        border-radius: 0.9rem;
+    }
+
+    .fi-btn,
+    .fi-ta-actions .fi-btn {
+        border-radius: 9999px;
+    }
+
+    .fi-tabs,
+    .fi-section-header,
+    .fi-modal-header {
+        border-radius: 1.2rem;
+    }
+
+    .fi-btn {
+        transition: transform 180ms ease, filter 180ms ease, background-color 180ms ease;
+    }
+
+    .fi-btn:hover {
+        filter: brightness(1.07);
+    }
+
+    .fi-btn:active {
+        transform: translateY(1px);
+    }
+
+    .fi-body :focus-visible {
+        outline: 2px solid var(--ih-admin-accent);
+        outline-offset: 2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+        .fi-sidebar-item-btn,
+        .fi-wi-stats-overview-stat,
+        .fi-ta-table tbody tr,
+        .fi-btn {
+            transition: none;
+        }
+    }
+}
+
+/* Filament applies button colors in its utilities layer, so these rules are unlayered. */
+.dark .fi-btn.fi-color-primary {
+    background-color: #f7e23b;
+    color: #0a0b0f;
+}
+
+.dark .fi-btn.fi-color-primary:hover {
+    background-color: #fff07a;
+    color: #0a0b0f;
+}
+
+@layer components {
+    .artist-profile {
+        overflow: hidden;
+        border: 1px solid var(--ih-admin-line);
+        background: var(--ih-admin-surface);
+    }
+
+    .artist-profile__cover {
+        background-color: #2c0f1c;
+        background-image: radial-gradient(circle at 75% 25%, rgb(247 226 59 / 22%), transparent 32%),
+            linear-gradient(125deg, #17202b, #23200a);
+    }
+
+    .artist-profile__name {
+        color: #fff;
+        text-shadow: 0 2px 12px rgb(0 0 0 / 65%);
+    }
+
+    .artist-profile-avatar {
+        width: 10rem;
+        height: 10rem;
+        flex: 0 0 10rem;
+        object-fit: cover;
+        border: 4px solid var(--color-gray-50);
+        border-radius: 1.75rem;
+        background: var(--color-gray-200);
+    }
+
+    :where(.dark) .artist-profile-avatar {
+        border-color: var(--color-gray-900);
+    }
+
+    .audio-preview {
+        overflow: hidden;
+        border: 1px solid var(--ih-admin-line);
+        border-radius: 1.35rem;
+        background: var(--ih-admin-surface);
+    }
+
+    .audio-preview__main {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 1rem;
+        align-items: center;
+        padding: 1rem;
+    }
+
+    .audio-preview__artwork {
+        display: grid;
+        width: 3.5rem;
+        height: 3.5rem;
+        flex: 0 0 3.5rem;
+        place-items: center;
+        overflow: hidden;
+        border-radius: 0.9rem;
+        background: #fbf3c0;
+        color: #5c4f00;
+    }
+
+    :where(.dark) .audio-preview__artwork {
+        background: rgb(247 226 59 / 16%);
+        color: #f7e23b;
+    }
+
+    .audio-preview__artwork img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .audio-preview__copy {
+        min-width: 0;
+    }
+
+    .audio-preview__title,
+    .audio-preview__artist,
+    .audio-preview__key {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .audio-preview__title {
+        color: var(--color-gray-950);
+        font-size: 0.9375rem;
+        font-weight: 600;
+        line-height: 1.3;
+    }
+
+    .audio-preview__artist {
+        margin-top: 0.25rem;
+        color: var(--color-gray-500);
+        font-size: 0.8125rem;
+    }
+
+    :where(.dark) .audio-preview__title {
+        color: var(--color-white);
+    }
+
+    :where(.dark) .audio-preview__artist,
+    :where(.dark) .audio-preview__key {
+        color: var(--color-gray-400);
+    }
+
+    .audio-preview__controls {
+        display: grid;
+        grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+        gap: 0.75rem;
+        align-items: center;
+        padding: 0.75rem 1rem 1rem;
+    }
+
+    .audio-preview__play {
+        display: grid;
+        width: 2.5rem;
+        height: 2.5rem;
+        place-items: center;
+        border-radius: 9999px;
+        background: #f7e23b;
+        color: #0a0b0f;
+        cursor: pointer;
+        transition: transform 180ms ease, background-color 180ms ease;
+    }
+
+    .audio-preview__play:hover {
+        background: #fff07a;
+        transform: translateY(-1px);
+    }
+
+    .audio-preview__play:active {
+        transform: translateY(0) scale(0.96);
+    }
+
+    .audio-preview__play:focus-visible,
+    .audio-preview__range:focus-visible {
+        outline: 2px solid #f7e23b;
+        outline-offset: 2px;
+    }
+
+    .audio-preview__play svg {
+        width: 1rem;
+        height: 1rem;
+    }
+
+    .audio-preview__range {
+        width: 100%;
+        height: 0.25rem;
+        accent-color: #f7e23b;
+        cursor: pointer;
+    }
+
+    .audio-preview__time {
+        color: var(--color-gray-500);
+        font-size: 0.75rem;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    .audio-preview__footer {
+        border-top: 1px solid var(--color-gray-100);
+        padding: 0.625rem 1rem;
+    }
+
+    .audio-preview__key {
+        color: var(--color-gray-500);
+        font-family: var(--font-mono);
+        font-size: 0.6875rem;
+    }
+
+    :where(.dark) .audio-preview__footer {
+        border-color: var(--color-gray-800);
+    }
+
+    :where(.dark) .audio-preview__time {
+        color: var(--color-gray-400);
+    }
+
+    @media (max-width: 30rem) {
+        .audio-preview__main {
+            gap: 0.75rem;
+            padding: 0.875rem;
+        }
+
+        .audio-preview__controls {
+            gap: 0.625rem;
+            padding: 0.625rem 0.875rem 0.875rem;
+        }
+    }
+}

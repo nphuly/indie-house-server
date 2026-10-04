@@ -1,0 +1,25 @@
+<?php
+
+return [
+    'login_heading' => 'Your listening room',
+    'welcome_label' => 'Welcome to the room',
+    'login_description' => 'Sign in to play your music on this device.',
+    'email' => 'Email',
+    'password' => 'Password',
+    'sign_in' => 'Sign in',
+    'invalid_credentials' => 'The email or password is incorrect.',
+    'title' => 'Music for this moment',
+    'library_label' => 'Your private collection',
+    'library_description' => 'Find something worth staying for.',
+    'all_tracks' => 'Latest tracks',
+    'search_results' => 'Search results',
+    'browser_player' => 'Or use the browser player',
+    'search' => 'Search tracks or artists',
+    'go' => 'Search',
+    'sign_out' => 'Sign out',
+    'empty' => 'No published tracks found.',
+    'play_in_app' => 'Play in app',
+    'previous' => 'Previous',
+    'next' => 'Next',
+    'page' => 'Page :current of :last',
+];

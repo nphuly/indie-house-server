@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Indie House">
+  <defs>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+  </defs>
+  <!-- "ih" as a yellow neon tube: i stem and dot, h stem, angled shoulder and leg.
+       Each stroke has a glow, the tube and a bright core. -->
+  <g fill="none" stroke="#f7e23b" stroke-linejoin="miter" stroke-miterlimit="10" transform="translate(100 100) scale(1.36) translate(-103 -113)">
+    <path d="M64 112 V150 M64 88 V90 M98 76 V150" stroke-linecap="square" stroke-width="20" filter="url(#glow)" opacity=".65"/>
+    <path d="M98 120 L112 104 H130 L142 116 V159" stroke-width="20" filter="url(#glow)" opacity=".65"/>
+    <path d="M64 112 V150 M64 88 V90 M98 76 V150" stroke-linecap="square" stroke-width="18"/>
+    <path d="M98 120 L112 104 H130 L142 116 V159" stroke-width="18"/>
+    <path d="M64 112 V150 M64 88 V90 M98 76 V150" stroke="#fffbe0" stroke-linecap="square" stroke-width="5" opacity=".85"/>
+    <path d="M98 120 L112 104 H130 L142 116 V152" stroke="#fffbe0" stroke-width="5" opacity=".85"/>
+  </g>
+</svg>

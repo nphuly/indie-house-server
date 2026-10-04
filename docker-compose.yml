@@ -1,0 +1,251 @@
+# Shared service definitions. Combine with docker-compose.development.yml for
+# local work or docker-compose.production.yml on the deployment VM.
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "5"
+
+x-control-plane: &control-plane
+  image: ${CONTROL_PLANE_IMAGE:-indie-house/control-plane:latest}
+  restart: unless-stopped
+  env_file:
+    - .env
+  logging: *logging
+  networks:
+    - internal
+
+# Workers share the control-plane image but serve no HTTP, so the image's
+# Caddy metrics healthcheck does not apply to them.
+x-control-plane-worker: &control-plane-worker
+  <<: *control-plane
+  init: true
+  healthcheck:
+    disable: true
+  depends_on:
+    control-plane:
+      condition: service_healthy
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  # ============================================================
+  # Control Plane - Laravel + Filament (FrankenPHP)
+  # ============================================================
+  control-plane:
+    container_name: control_plane
+    <<: *control-plane
+    volumes:
+      - ./infrastructure/stream-keys:/app/storage/keys:ro
+      - backup_data:/app/storage/app/private/backups
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      # TLS ends at the public HTTPS proxy; the control plane receives internal HTTP.
+      SERVER_NAME: ":80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl --silent --output /dev/null --write-out '%{http_code}' --max-time 5 http://localhost/up | grep -qx 200" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # ============================================================
+  # Queue Worker
+  # ============================================================
+  queue-worker:
+    container_name: queue_worker
+    <<: *control-plane-worker
+    volumes:
+      - queue_worker_tmp:/tmp
+      - backup_data:/app/storage/app/private/backups
+    command: [ "php", "artisan", "queue:work", "redis", "--queue=audio-processing,default", "--sleep=3", "--tries=3", "--timeout=600", "--max-jobs=100", "--max-time=3600" ]
+    # A stopped worker finishes its current job first; longer jobs are
+    # released and retried after REDIS_QUEUE_RETRY_AFTER.
+    stop_grace_period: 2m
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # ============================================================
+  # Scheduler
+  # ============================================================
+  scheduler:
+    container_name: scheduler
+    <<: *control-plane-worker
+    volumes:
+      - backup_data:/app/storage/app/private/backups
+    command: [ "php", "artisan", "schedule:work" ]
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+        reservations:
+          cpus: "0.05"
+          memory: 64M
+
+  # ============================================================
+  # Media Worker - FFmpeg
+  # ============================================================
+  media-worker:
+    container_name: media_worker
+    image: ${MEDIA_WORKER_IMAGE:-indie-house/media-worker:latest}
+    restart: unless-stopped
+    volumes:
+      - media_worker_tmp:/tmp
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_QUEUE: "audio-processing"
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_ACCESS_KEY: ${AWS_ACCESS_KEY_ID}
+      MINIO_SECRET_KEY: ${AWS_SECRET_ACCESS_KEY}
+      MINIO_BUCKET: ${AWS_BUCKET}
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
+    # The worker has already popped its current job from Redis, so give the
+    # transcode time to finish instead of losing it on a deploy.
+    stop_grace_period: 10m
+    logging: *logging
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+
+  # ============================================================
+  # Stream service - GoLang API Gateway
+  # ============================================================
+  stream-service:
+    container_name: stream_service
+    image: ${STREAM_SERVICE_IMAGE:-indie-house/stream-service:latest}
+    restart: unless-stopped
+    profiles: ["stream"]
+    environment:
+      LISTEN_ADDR: ":8080"
+      CONTROL_PLANE_INTERNAL_URL: http://control-plane/api/internal
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_ACCESS_KEY: ${AWS_ACCESS_KEY_ID}
+      MINIO_SECRET_KEY: ${AWS_SECRET_ACCESS_KEY}
+      MINIO_BUCKET: ${AWS_BUCKET}
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
+      # Presigned URLs only; audio is read through MINIO_ENDPOINT.
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-}
+      MINIO_PUBLIC_USE_SSL: ${MINIO_PUBLIC_USE_SSL:-}
+      CATALOGUE_CACHE_TTL_SECONDS: ${CATALOGUE_CACHE_TTL_SECONDS:-300}
+      JWT_PUBLIC_KEY_PATH: /app/keys/public.key
+      JWT_PUBLIC_KEYS_DIRECTORY: /app/keys/managed
+      JWT_LEGACY_KEY_ID: ${STREAM_JWT_KEY_ID:-stream-v1}
+      JWT_ISSUER: ${STREAM_JWT_ISSUER}
+      JWT_AUDIENCE: ${STREAM_JWT_AUDIENCE}
+    volumes:
+      - ./infrastructure/stream-keys/public.key:/app/keys/public.key:ro
+      - ./infrastructure/stream-public-keys:/app/keys/managed:ro
+    depends_on:
+      control-plane:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--output-document=/dev/null", "http://127.0.0.1:8080/healthz" ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    logging: *logging
+    networks:
+      - internal
+
+  # ============================================================
+  # Database - PostgresSQL
+  # ============================================================
+  postgres:
+    container_name: postgres
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    # Leave time for the shutdown checkpoint so restarts skip crash recovery.
+    stop_grace_period: 1m
+    logging: *logging
+    networks:
+      - internal
+
+  # ============================================================
+  # Redis
+  # ============================================================
+  redis:
+    container_name: redis
+    image: redis:8-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    # Redis holds the queue and web sessions. An existing RDB-only server must
+    # switch to AOF live first (deploy-release.sh does this); starting it with
+    # this flag and no AOF files would load an empty dataset.
+    # A non-empty REDIS_PASSWORD (required in production, empty in development)
+    # turns on requirepass; every client reads the same variable. Redis
+    # rewrites its process title, so the password does not show in `ps`.
+    command:
+      - sh
+      - -c
+      - |
+        set -- redis-server --appendonly yes
+        if [ -n "$$REDIS_PASSWORD" ]; then set -- "$$@" --requirepass "$$REDIS_PASSWORD"; fi
+        exec "$$@"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      # redis-cli exits 0 even on NOAUTH, so check the reply itself.
+      test: [ "CMD-SHELL", "[ -z \"$$REDIS_PASSWORD\" ] || export REDISCLI_AUTH=\"$$REDIS_PASSWORD\"; redis-cli ping | grep -qx PONG" ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    logging: *logging
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  backup_data:
+  caddy_data:
+  caddy_config:
+  queue_worker_tmp:
+  media_worker_tmp:

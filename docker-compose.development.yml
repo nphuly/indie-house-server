@@ -1,0 +1,61 @@
+# Local development. The Laravel source is bind-mounted, so PHP changes apply
+# without a rebuild; run Vite on the host. All three PHP services share one
+# vendor volume, seeded from the development image when it is first created.
+x-control-plane-dev: &control-plane-dev
+  image: indie-house/control-plane:dev
+  volumes:
+    - ./src/control-plane:/app
+    - control_plane_vendor:/app/vendor
+
+services:
+  control-plane:
+    <<: *control-plane-dev
+    build:
+      context: ./src/control-plane
+      target: development
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "80:80"
+    environment:
+      LOG_LEVEL: debug
+      # Development serves Laravel on :80 without the Caddy edge, so nothing
+      # routes /api/v1/stream/*: Laravel streams web audio itself here.
+      STREAM_WEB_AUDIO_VIA_GATEWAY: "false"
+      PHP_IDE_CONFIG: serverName=docker
+      XDEBUG_MODE: debug
+      XDEBUG_CONFIG: client_host=host.docker.internal
+
+  # Set XDEBUG_MODE to debug here to step through jobs or scheduled commands.
+  queue-worker:
+    <<: *control-plane-dev
+    environment:
+      XDEBUG_MODE: "off"
+
+  scheduler:
+    <<: *control-plane-dev
+    environment:
+      XDEBUG_MODE: "off"
+
+  media-worker:
+    build:
+      context: ./src/media-worker
+
+  stream-service:
+    build:
+      context: ./src/stream-service
+    ports:
+      - "8081:8080"
+
+  # Loopback only: Redis has no password, and anyone who can write to its
+  # queue can make the media worker process arbitrary jobs.
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  redis:
+    ports:
+      - "127.0.0.1:6379:6379"
+
+volumes:
+  control_plane_vendor:
